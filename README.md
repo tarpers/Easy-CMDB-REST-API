@@ -1,2 +1,106 @@
 # Easy-CMDB-REST-API
-Easy CMDB REST API
+
+A REST API for Easy CMDB, a configuration management database for tracking IT assets (servers, applications, databases, network devices and more) and their lifecycle status.
+
+Built with [FastAPI](https://fastapi.tiangolo.com/), [SQLModel](https://sqlmodel.tiangolo.com/) and [Pydantic Settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/).
+
+## Requirements
+
+- Python 3.14
+- [uv](https://docs.astral.sh/uv/)
+
+## Getting started
+
+```bash
+uv sync               # install dependencies into .venv
+uv run fastapi dev    # start the development server with auto-reload
+```
+
+The API is then available at <http://127.0.0.1:8000>, with interactive docs at:
+
+- Swagger UI: <http://127.0.0.1:8000/docs>
+- ReDoc: <http://127.0.0.1:8000/redoc>
+
+The database tables are created automatically on startup. By default the data is stored in a local SQLite file, `cmdb.db`.
+
+To run in production mode, use `uv run fastapi run`.
+
+## Configuration
+
+Settings are read from environment variables prefixed with `CMDB_`, or from a `.env` file in the project root.
+
+| Variable             | Default                  | Description                                   |
+| -------------------- | ------------------------ | --------------------------------------------- |
+| `CMDB_APP_NAME`      | `Easy CMDB REST API`     | Title shown in the API docs                   |
+| `CMDB_DATABASE_URL`  | `sqlite:///./cmdb.db`    | SQLAlchemy database URL                       |
+| `CMDB_ECHO_SQL`      | `false`                  | Log every SQL statement (useful for debugging) |
+| `CMDB_MAX_BODY_SIZE` | `1048576` (1 MiB)        | Maximum request body size in bytes            |
+
+Example `.env`:
+
+```dotenv
+CMDB_DATABASE_URL=sqlite:///./cmdb.db
+CMDB_ECHO_SQL=true
+```
+
+`.env` is git-ignored. Don't commit credentials.
+
+## API overview
+
+| Method   | Path                          | Description                          |
+| -------- | ----------------------------- | ------------------------------------ |
+| `GET`    | `/health`                     | Service and database health check    |
+| `GET`    | `/configuration-items/`       | List configuration items             |
+| `POST`   | `/configuration-items/`       | Create a configuration item          |
+| `GET`    | `/configuration-items/{id}`   | Get a configuration item             |
+| `PATCH`  | `/configuration-items/{id}`   | Partially update a configuration item |
+| `DELETE` | `/configuration-items/{id}`   | Delete a configuration item          |
+
+Listing supports these query parameters:
+
+- `ci_type`: filter by type (`server`, `virtual_machine`, `application`, `database`, `network_device`, `storage`, `service`, `other`)
+- `status`: filter by status (`planned`, `active`, `maintenance`, `retired`)
+- `offset` / `limit`: pagination (`limit` defaults to 50, maximum 100)
+
+Example:
+
+```bash
+curl -X POST http://127.0.0.1:8000/configuration-items/ \
+  -H 'Content-Type: application/json' \
+  -d '{"name": "web-01", "ci_type": "server", "status": "active", "owner": "ops"}'
+
+curl 'http://127.0.0.1:8000/configuration-items/?ci_type=server&status=active'
+```
+
+See `/docs` for full request and response schemas.
+
+## Project structure
+
+```text
+src/easy_cmdb_rest_api/
+├── main.py                 # App factory, lifespan and router registration
+├── config.py               # Settings (CMDB_* environment variables)
+├── database.py             # Database engine and session dependency
+├── models.py               # SQLModel table and request/response models
+└── routers/
+    ├── health.py           # /health
+    └── configuration_items.py  # /configuration-items
+tests/                      # pytest suite (uses an in-memory SQLite database)
+```
+
+## Development
+
+```bash
+uv run pytest                    # run the tests
+uv run ruff check .              # lint
+uv run ruff format .             # format
+uv run ty check src tests        # type-check
+```
+
+Add dependencies with `uv add <package>`, or `uv add --dev <package>` for development-only tools.
+
+## Roadmap
+
+- Database migrations with Alembic (tables are currently created on startup)
+- Authentication and authorisation
+- Relationships between configuration items
