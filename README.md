@@ -99,6 +99,27 @@ uv run ty check src tests        # type-check
 
 Add dependencies with `uv add <package>`, or `uv add --dev <package>` for development-only tools.
 
+## Security scanning
+
+The [Security workflow](.github/workflows/security.yml) runs on every pull request, on pushes to `main`, weekly, and on demand. Any finding fails the build.
+
+| Check            | Type | What it covers                                                   |
+| ---------------- | ---- | ---------------------------------------------------------------- |
+| Bandit           | SAST | Common Python security issues in `src/`                          |
+| Semgrep          | SAST | Python, FastAPI and GitHub Actions rulesets across the repo      |
+| pip-audit        | SCA  | Known vulnerabilities in every package pinned in `uv.lock`       |
+
+[Dependabot](.github/dependabot.yml) proposes weekly updates for Python packages and GitHub Actions, waiting 7 days after each release.
+
+To run the same scans locally:
+
+```bash
+uvx bandit --recursive src
+uvx semgrep scan --config p/python --config p/fastapi --config p/github-actions --metrics=off --error
+uv export --frozen --no-emit-project --all-groups --format requirements-txt -o /tmp/req.txt \
+  && uvx pip-audit -r /tmp/req.txt --disable-pip --strict
+```
+
 ## Roadmap
 
 - Database migrations with Alembic (tables are currently created on startup)

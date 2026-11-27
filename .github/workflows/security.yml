@@ -1,0 +1,83 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, to catch newly published vulnerabilities in unchanged code.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_PYTHON: "3.14"
+  BANDIT_VERSION: "1.9.4"
+  SEMGREP_VERSION: "1.187.0"
+  PIP_AUDIT_VERSION: "2.10.1"
+
+jobs:
+  sast-bandit:
+    name: SAST (Bandit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: false
+      - name: Run Bandit
+        run: uvx "bandit@${BANDIT_VERSION}" --recursive src
+
+  sast-semgrep:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: false
+      - name: Run Semgrep
+        # p/github-actions also scans these workflow files for issues such as
+        # shell injection.
+        run: >-
+          uvx "semgrep@${SEMGREP_VERSION}" scan
+          --config p/python
+          --config p/fastapi
+          --config p/github-actions
+          --metrics=off
+          --error
+
+  sca-pip-audit:
+    name: SCA (pip-audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: false
+      - name: Export locked dependencies
+        # Audit exactly what uv.lock pins, including dev tools, with hashes.
+        run: >-
+          uv export --frozen --no-emit-project --all-groups
+          --format requirements-txt --output-file requirements-audit.txt
+      - name: Run pip-audit
+        run: >-
+          uvx "pip-audit@${PIP_AUDIT_VERSION}"
+          --requirement requirements-audit.txt
+          --disable-pip
+          --strict
