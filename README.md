@@ -97,6 +97,8 @@ uv run ruff format .             # format
 uv run ty check src tests        # type-check
 ```
 
+The [CI workflow](.github/workflows/ci.yml) runs the same checks on every pull request and push to `main`. It also fails if `uv.lock` is out of date with `pyproject.toml`.
+
 Add dependencies with `uv add <package>`, or `uv add --dev <package>` for development-only tools.
 
 ## Security scanning
