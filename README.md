@@ -127,3 +127,7 @@ uv export --frozen --no-emit-project --all-groups --format requirements-txt -o /
 - Database migrations with Alembic (tables are currently created on startup)
 - Authentication and authorisation
 - Relationships between configuration items
+
+## License
+
+Released under the [MIT License](LICENSE).
